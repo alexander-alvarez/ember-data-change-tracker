@@ -3,10 +3,12 @@ import FactoryGuy, {
   build, make, makeList, mockUpdate, mockFindRecord, mockReload,
   mockDelete, manualSetup, mockSetup, mockTeardown
 } from 'ember-data-factory-guy';
-import {initializer as modelInitializer} from 'ember-data-change-tracker';
-import {test, moduleForModel} from 'ember-qunit';
-import Tracker, {ModelTrackerKey} from 'ember-data-change-tracker/tracker';
+import { initializer as modelInitializer } from 'ember-data-change-tracker';
+import { test, moduleForModel } from 'ember-qunit';
+import Tracker, { ModelTrackerKey } from 'ember-data-change-tracker/tracker';
 import sinon from 'sinon';
+
+const { Object: EmberObject, computed } = Ember;
 
 modelInitializer();
 
@@ -558,6 +560,39 @@ test('#isDirty computed works on normal attributes (with auto save model)', func
     assert.equal(user.get('hasDirtyAttributes'), true);
   });
 });
+
+test('#isDirty computed can be used in dependent keys (with auto save model)', function(assert) {
+  Ember.run(() => {
+    let user = make('user');
+    const MyClass = EmberObject.extend({
+      users: null,
+      anyUserIsDirty: computed('user.@each.isDirty', function() {
+        return this.get('users').some(a => a.get('isDirty'));
+      }),
+      anyUserIsDirty2: computed('user.@each.{hasDirtyRelations,hasDirtyAttributes}', function() {
+        return this.get('users').some(a => a.get('isDirty'));
+      })
+    });
+
+    const instance = MyClass.create({
+      users: [user]
+    });
+
+
+    assert.notOk(user.get('isDirty'), 'Untouched model is not dirty');
+    assert.notOk(user.get('hasDirtyAttributes'), 'Untouched model has no dirty attributes');
+    assert.notOk(instance.get('anyUserIsDirty'), 'Untouched models are not dirty');
+
+    user.set('name', 'Person 1');
+
+    assert.ok(user.get('isDirty'), 'User has changed');
+    assert.ok(user.get('hasDirtyAttributes'), 'user has dirty attributes');
+    assert.ok(instance.get('anyUserIsDirty'), 'The computed property should be dirty too (permutation one)');
+    assert.ok(instance.get('anyUserIsDirty2'), 'The computed property should be dirty too (permutation two)');
+
+  });
+});
+
 
 test('#isDirty computed works when changing belongsTo relationship (with auto save model)', function(assert) {
   Ember.run(() => {
