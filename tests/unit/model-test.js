@@ -575,7 +575,7 @@ test('#isDirty computed can be used in dependent keys (with auto save model)', f
     });
 
     const instance = MyClass.create({
-      users: [user]
+      users: Ember.A([user])
     });
 
 
